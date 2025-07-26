@@ -2,107 +2,91 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>BeatSaver Playlist Extractor</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 1rem;
-    }
-    label {
-      margin-right: 10px;
-    }
-    textarea {
-      width: 100%;
-      height: 300px;
-      margin-top: 1rem;
-      font-family: monospace;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BeatSaver Playlist Parser</title>
 </head>
 <body>
-  <h1>BeatSaver Playlist Extractor</h1>
-  <label for="playlistUrl">Enter BeatSaver Playlist URL:</label><br>
-  <input type="text" id="playlistUrl" placeholder="https://beatsaver.com/playlists/964069" size="60" />
+  <h1>BeatSaver Playlist to Python</h1>
+  <input type="text" id="playlistUrl" placeholder="Paste BeatSaver playlist URL">
+  <br><br>
+  <label><input type="checkbox" class="difficulty-filter" value="Easy" checked> Easy</label>
+  <label><input type="checkbox" class="difficulty-filter" value="Normal" checked> Normal</label>
+  <label><input type="checkbox" class="difficulty-filter" value="Hard" checked> Hard</label>
+  <label><input type="checkbox" class="difficulty-filter" value="Expert" checked> Expert</label>
+  <label><input type="checkbox" class="difficulty-filter" value="ExpertPlus" checked> ExpertPlus</label>
+  <br><br>
   <button onclick="fetchPlaylist()">Generate</button>
-
-  <h3>Select Difficulties:</h3>
-  <div id="difficultyFilter">
-    <label><input type="checkbox" value="Easy" checked> Easy</label>
-    <label><input type="checkbox" value="Normal" checked> Normal</label>
-    <label><input type="checkbox" value="Hard" checked> Hard</label>
-    <label><input type="checkbox" value="Expert" checked> Expert</label>
-    <label><input type="checkbox" value="ExpertPlus" checked> ExpertPlus</label>
-  </div>
-
-  <textarea id="output" readonly placeholder="Python dictionary will appear here..."></textarea>
+  <pre id="output"></pre>
 
   <script>
     async function fetchPlaylist() {
       const urlInput = document.getElementById('playlistUrl').value.trim();
-      const output = document.getElementById('output');
-      output.value = 'Fetching...';
-
-      const playlistIdMatch = urlInput.match(/playlists\/(\d+)/);
-      if (!playlistIdMatch) {
-        output.value = 'Invalid playlist URL.';
+      const match = urlInput.match(/playlists\/(\d+)/);
+      const playlistId = match ? match[1] : null;
+      if (!playlistId) {
+        document.getElementById('output').textContent = "Invalid URL!";
         return;
       }
 
-      const playlistId = playlistIdMatch[1];
-      const selectedDifficulties = Array.from(document.querySelectorAll('#difficultyFilter input[type="checkbox"]'))
-        .filter(cb => cb.checked)
-        .map(cb => cb.value);
+      const selectedDifficulties = Array.from(document.querySelectorAll('.difficulty-filter:checked')).map(cb => cb.value);
 
-      try {
-        const res = await fetch(`https://api.beatsaver.com/playlists/id/${playlistId}/0`);
+      let page = 0;
+      let hasMore = true;
+      const songDict = {};
+
+      while (hasMore) {
+        const res = await fetch(`https://api.beatsaver.com/playlists/id/${playlistId}/${page}`);
+        if (!res.ok) {
+          document.getElementById('output').textContent = "Error fetching playlist data";
+          return;
+        }
+
         const data = await res.json();
+        if (!data.maps || data.maps.length === 0) {
+          hasMore = false;
+          break;
+        }
 
-        const songs = data.maps;
-        const songDict = {};
-
-        for (const song of songs) {
-          const map = song.map;
+        for (const item of data.maps) {
+          const map = item.map;
+          const metadata = map.metadata;
+          const songTitle = `${metadata.songAuthorName} - ${metadata.songName}`;
           const version = map.versions[0];
           const levelId = version.key ?? map.id ?? "UNKNOWN";
-          const diffs = version.diffs;
 
-        for (const diff of diffs) {
-          if (!selectedDifficulties.includes(diff.difficulty)) continue;
+          for (const diff of version.diffs) {
+            if (!selectedDifficulties.includes(diff.difficulty)) continue;
 
-          const songName = `[${data.playlist.name}] ${map.metadata.songAuthorName} - ${map.metadata.songName}`;
-          songDict[songName] = {
-            levelid: levelId,
-            difficulty: difficultyToNumber(diff.difficulty),
-            characteristic: diff.characteristic
-          };
+            const fullTitle = `${songTitle} [${diff.difficulty}]`;
+            songDict[fullTitle] = {
+              levelid: levelId,
+              difficulty: diffToNumber(diff.difficulty),
+              characteristic: diff.characteristic
+            };
+          }
         }
+
+        page++;
       }
 
-        const formatted = formatPythonDict(songDict);
-        output.value = formatted;
-      } catch (err) {
-        output.value = 'Error fetching playlist data:\n' + err.message;
+      const lines = ['default_songs = {'];
+      for (const [k, v] of Object.entries(songDict)) {
+        lines.push(`    "${k}": {\n        levelid: "${v.levelid}",\n        difficulty: ${v.difficulty},\n        characteristic: "${v.characteristic}"\n    },`);
       }
+      lines.push('}');
+
+      document.getElementById('output').textContent = lines.join('\n');
     }
 
-    function difficultyToNumber(difficulty) {
-      switch (difficulty) {
-        case 'Easy': return 1;
-        case 'Normal': return 2;
-        case 'Hard': return 3;
-        case 'Expert': return 4;
-        case 'ExpertPlus': return 5;
-        default: return 0;
-      }
-    }
-
-    function formatPythonDict(obj) {
-      const entries = Object.entries(obj).map(([k, v]) => {
-        return `    "${k}": {\n        "levelid": "${v.levelid}",\n        "difficulty": ${v.difficulty},\n        "characteristic": "${v.characteristic}"\n    }`;
-      });
-      return `default_songs = {\n${entries.join(',\n')}\n}`;
+    function diffToNumber(diff) {
+      const mapping = {
+        Easy: 1,
+        Normal: 2,
+        Hard: 3,
+        Expert: 4,
+        ExpertPlus: 5
+      };
+      return mapping[diff] ?? 0;
     }
   </script>
 </body>
