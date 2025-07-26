@@ -11,6 +11,16 @@
 <body>
   <h1>BeatSaver Playlist to Python Dictionary</h1>
   <input id="playlistUrl" type="text" placeholder="Enter BeatSaver playlist URL" size="80" />
+  
+  <select id="difficultyFilter">
+  <option value="All">All Difficulties</option>
+  <option value="Easy">Easy</option>
+  <option value="Normal">Normal</option>
+  <option value="Hard">Hard</option>
+  <option value="Expert">Expert</option>
+  <option value="ExpertPlus">ExpertPlus</option>
+  </select>
+  
   <button onclick="fetchPlaylist()">Convert</button>
   <h2>Output:</h2>
   <textarea id="output" readonly></textarea>
@@ -57,42 +67,46 @@
 
       const lines = ['default_songs = {'];
 
+      const selectedDifficulty = document.getElementById("difficultyFilter").value;
+
       for (const mapEntry of allMaps) {
         const map = mapEntry.map || {};
         const metadata = map.metadata || {};
         const songTitle = `${metadata.songAuthorName || "Unknown Artist"} - ${metadata.songName || "Unknown Title"}`;
-        const baseTitle = `${songTitle}`;
+        const baseTitle = `[${playlistName || "Playlist"}] ${songTitle}`;
 
         const versions = map.versions || [];
+        if (versions.length === 0) continue;
 
-        if (versions.length > 0) {
-          const version = versions[0];
-          const levelid = version.key || map.id || "UNKNOWN";
-          const diffs = version.diffs || [];
+        const version = versions[0];
+        const levelid = version.key || map.id || "UNKNOWN";
+        const diffs = version.diffs || [];
 
-          for (const diffObj of diffs) {
-            const difficultyMap = {
-              Easy: 1,
-              Normal: 2,
-              Hard: 3,
-              Expert: 4,
-              ExpertPlus: 5
-            };
+      for (const diffObj of diffs) {
+        const difficulty = diffObj.difficulty || "Unknown";
+        if (selectedDifficulty !== "All" && selectedDifficulty !== difficulty) continue;
 
-            const difficulty = diffObj.difficulty || "Unknown";
-            const characteristic = diffObj.characteristic || "Standard";
-            const diffNumeric = difficultyMap[difficulty] || 0;
+        const difficultyMap = {
+          Easy: 1,
+          Normal: 2,
+          Hard: 3,
+          Expert: 4,
+          ExpertPlus: 5
+        };
 
-            const fullTitle = `${baseTitle} [${difficulty}]`;
+        const characteristic = diffObj.characteristic || "Standard";
+        const diffNumeric = difficultyMap[difficulty] || 0;
 
-            lines.push(`    "${fullTitle}": {`);
-            lines.push(`        "levelid": "${levelid}",`);
-            lines.push(`        "difficulty": ${diffNumeric},`);
-            lines.push(`        "characteristic": "${characteristic}"`);
-            lines.push(`    },`);
-          }
-        }
+        const fullTitle = `${baseTitle} [${difficulty}]`;
+
+        lines.push(`    "${fullTitle}": {`);
+        lines.push(`        "levelid": "${levelid}",`);
+        lines.push(`        "difficulty": ${diffNumeric},`);
+        lines.push(`        "characteristic": "${characteristic}"`);
+        lines.push(`    },`);
       }
+    }
+}
 
       lines.push("}");
       outputBox.value = lines.join("\n");
@@ -103,6 +117,6 @@
       outputBox.value = "default_songs = {}";
     }
   }
-</script>
+  </script>
 </body>
 </html>
