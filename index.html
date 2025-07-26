@@ -36,14 +36,9 @@
       while (true) {
         const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}/${page}`;
         const response = await fetch(apiUrl);
-        if (!response.ok) {
-          console.error("HTTP error", response.status);
-          break;
-        }
+        if (!response.ok) break;
 
         const data = await response.json();
-        console.log("Fetched page", page, data); // 🧪 Log full response
-
         if (page === 0 && data.playlist?.name) {
           playlistName = data.playlist.name;
         }
@@ -66,43 +61,48 @@
         const map = mapEntry.map || {};
         const metadata = map.metadata || {};
         const songTitle = `${metadata.songAuthorName || "Unknown Artist"} - ${metadata.songName || "Unknown Title"}`;
-        const fullTitle = `${songTitle}`;
+        const baseTitle = `[${playlistName || "Playlist"}] ${songTitle}`;
 
         const versions = map.versions || [];
-        let levelid = "UNKNOWN";
-        let diffNumeric = 0;
-        let characteristic = "Standard";
 
         if (versions.length > 0) {
           const version = versions[0];
-          levelid = version.key || map.id || "UNKNOWN";
+          const levelid = version.key || map.id || "UNKNOWN";
+          const diffs = version.diffs || [];
 
-          const diffObj = version.diffs?.find(d => d.characteristic === "Standard") || version.diffs?.[0];
-          if (diffObj) {
-            characteristic = diffObj.characteristic || "Standard";
+          for (const diffObj of diffs) {
             const difficultyMap = {
-              Easy: 1, Normal: 2, Hard: 3, Expert: 4, ExpertPlus: 5
+              Easy: 1,
+              Normal: 2,
+              Hard: 3,
+              Expert: 4,
+              ExpertPlus: 5
             };
-            diffNumeric = difficultyMap[diffObj.difficulty] || 0;
+
+            const difficulty = diffObj.difficulty || "Unknown";
+            const characteristic = diffObj.characteristic || "Standard";
+            const diffNumeric = difficultyMap[difficulty] || 0;
+
+            const fullTitle = `${baseTitle} [${difficulty}]`;
+
+            lines.push(`    "${fullTitle}": {`);
+            lines.push(`        "levelid": "${levelid}",`);
+            lines.push(`        "difficulty": ${diffNumeric},`);
+            lines.push(`        "characteristic": "${characteristic}"`);
+            lines.push(`    },`);
           }
         }
-
-        lines.push(`    "${fullTitle}": {`);
-        lines.push(`        "levelid": "${levelid}",`);
-        lines.push(`        "difficulty": ${diffNumeric},`);
-        lines.push(`        "characteristic": "${characteristic}"`);
-        lines.push(`    },`);
       }
 
       lines.push("}");
       outputBox.value = lines.join("\n");
 
     } catch (err) {
-      console.error("Exception during fetch or processing:", err);
+      console.error("Error:", err);
       alert("Error fetching playlist data");
       outputBox.value = "default_songs = {}";
     }
   }
-  </script>
+</script>
 </body>
 </html>
