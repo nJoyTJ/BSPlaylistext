@@ -16,52 +16,79 @@
   <textarea id="output" readonly></textarea>
 
   <script>
-    async function fetchPlaylist() {
-      const input = document.getElementById("playlistUrl").value.trim();
-      const match = input.match(/\/playlists\/([^/]+)/);
-      if (!match) {
-        alert("Invalid URL");
+  async function fetchPlaylist() {
+    const input = document.getElementById("playlistUrl").value.trim();
+    const match = input.match(/\/playlists\/([^/]+)/);
+    if (!match) {
+      alert("Invalid URL");
+      return;
+    }
+
+    const playlistId = match[1];
+    const outputBox = document.getElementById("output");
+    outputBox.value = "Loading...";
+
+    let page = 0;
+    let allSongs = [];
+
+    try {
+      while (true) {
+        const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}/${page}`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) break;
+
+        const data = await response.json();
+        const songs = data.songs || [];
+
+        if (songs.length === 0) break;
+
+        allSongs.push(...songs);
+        page++;
+      }
+
+      if (allSongs.length === 0) {
+        outputBox.value = "default_songs = {}";
         return;
       }
 
-      const playlistId = match[1];
-      const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}`;
+      const lines = ['default_songs = {'];
 
-      try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error("Playlist not found");
-        const data = await response.json();
+      for (const song of allSongs) {
+        const title = song.name || "Unknown Title";
+        const key = song.key || "UNKNOWN";
+        const versions = song.versions || [];
 
-        const songs = data.songs || [];
-        const lines = ['default_songs = {'];
+        let diffNumeric = 0;
+        let characteristic = "Standard";
 
-        for (const song of songs) {
-          const title = song.name;
-          const songKey = song.key;
-          const difficulty = song.metadata.difficulties.standard?.length
-            ? song.metadata.difficulties.standard[0].difficulty
-            : "Unknown";
+        if (versions.length > 0 && versions[0].diffs.length > 0) {
+          const diffObj = versions[0].diffs.find(d => d.characteristic === "Standard") || versions[0].diffs[0];
+          const difficulty = diffObj.difficulty || "Unknown";
+          characteristic = diffObj.characteristic || "Standard";
 
-          const diffNumeric = {
+          const difficultyMap = {
             Easy: 1, Normal: 2, Hard: 3, Expert: 4, ExpertPlus: 5
-          }[difficulty] || 0;
+          };
 
-          const songLine = `    "${title}": {\n` +
-                           `        "levelid": "${songKey}",\n` +
-                           `        "difficulty": ${diffNumeric},\n` +
-                           `        "characteristic": "Standard"\n    },`;
-
-          lines.push(songLine);
+          diffNumeric = difficultyMap[difficulty] || 0;
         }
 
-        lines.push("}");
-
-        document.getElementById("output").value = lines.join("\n");
-      } catch (err) {
-        console.error(err);
-        alert("Error fetching playlist data");
+        lines.push(`    "${title}": {`);
+        lines.push(`        "levelid": "${key}",`);
+        lines.push(`        "difficulty": ${diffNumeric},`);
+        lines.push(`        "characteristic": "${characteristic}"`);
+        lines.push(`    },`);
       }
+
+      lines.push("}");
+      outputBox.value = lines.join("\n");
+
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching playlist data");
+      outputBox.value = "default_songs = {}";
     }
-  </script>
+  }
+</script>
 </body>
 </html>
