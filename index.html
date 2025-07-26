@@ -1,46 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>BeatSaver Playlist Extractor</title>
+  <meta charset="UTF-8">
+  <title>BeatSaver Playlist Parser</title>
   <style>
     body {
       font-family: sans-serif;
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 1rem;
+      margin: 40px;
     }
-    label {
-      margin-right: 10px;
+
+    input[type="text"] {
+      width: 500px;
+      padding: 5px;
     }
+
     textarea {
       width: 100%;
-      height: 300px;
-      margin-top: 1rem;
-      font-family: monospace;
+      height: 400px;
+      margin-top: 20px;
+      white-space: pre;
+    }
+
+    label {
+      margin-right: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>BeatSaver Playlist to Python</h1>
-  <input type="text" id="playlistUrl" placeholder="Paste BeatSaver playlist URL">
+  <h2>BeatSaver Playlist → Python Song Dictionary</h2>
+  <p>Enter a BeatSaver playlist URL:</p>
+  <input type="text" id="playlistUrl" placeholder="https://beatsaver.com/playlists/123456">
   <br><br>
-  <label><input type="checkbox" class="difficulty-filter" value="Easy" checked> Easy</label>
-  <label><input type="checkbox" class="difficulty-filter" value="Normal" checked> Normal</label>
-  <label><input type="checkbox" class="difficulty-filter" value="Hard" checked> Hard</label>
-  <label><input type="checkbox" class="difficulty-filter" value="Expert" checked> Expert</label>
-  <label><input type="checkbox" class="difficulty-filter" value="ExpertPlus" checked> ExpertPlus</label>
-  <br><br>
-  <button onclick="fetchPlaylist()">Generate</button>
-  <pre id="output"></pre>
+
+  <div>
+    <strong>Select difficulties to include:</strong><br>
+    <label><input type="checkbox" class="difficulty-filter" value="Easy" checked> Easy</label>
+    <label><input type="checkbox" class="difficulty-filter" value="Normal" checked> Normal</label>
+    <label><input type="checkbox" class="difficulty-filter" value="Hard" checked> Hard</label>
+    <label><input type="checkbox" class="difficulty-filter" value="Expert" checked> Expert</label>
+    <label><input type="checkbox" class="difficulty-filter" value="ExpertPlus" checked> ExpertPlus</label>
+  </div>
+  <br>
+  <button onclick="fetchPlaylist()">Generate Python Dictionary</button>
+
+  <textarea id="output" placeholder="Your song dictionary will appear here..."></textarea>
 
   <script>
     async function fetchPlaylist() {
       const urlInput = document.getElementById('playlistUrl').value.trim();
       const match = urlInput.match(/playlists\/(\d+)/);
       const playlistId = match ? match[1] : null;
+      const output = document.getElementById('output');
       if (!playlistId) {
-        document.getElementById('output').textContent = "Invalid URL!";
+        output.value = "❌ Invalid URL. Please paste a full playlist link like: https://beatsaver.com/playlists/123456";
         return;
       }
 
@@ -53,7 +65,7 @@
       while (hasMore) {
         const res = await fetch(`https://api.beatsaver.com/playlists/id/${playlistId}/${page}`);
         if (!res.ok) {
-          document.getElementById('output').textContent = "Error fetching playlist data";
+          output.value = "❌ Error fetching playlist data.";
           return;
         }
 
@@ -65,16 +77,15 @@
 
         for (const item of data.maps) {
           const map = item.map;
-          const metadata = map.metadata;
-          const songTitle = `${metadata.songAuthorName} - ${metadata.songName}`;
           const version = map.versions[0];
           const levelId = version.key ?? map.id ?? "UNKNOWN";
+          const diffs = version.diffs;
 
-          for (const diff of version.diffs) {
+          for (const diff of diffs) {
             if (!selectedDifficulties.includes(diff.difficulty)) continue;
 
-            const fullTitle = `${songTitle} [${diff.difficulty}]`;
-            songDict[fullTitle] = {
+            const songName = `${map.metadata.songAuthorName} - ${map.metadata.songName} [${diff.difficulty}]`;
+            songDict[songName] = {
               levelid: levelId,
               difficulty: diffToNumber(diff.difficulty),
               characteristic: diff.characteristic
@@ -91,7 +102,7 @@
       }
       lines.push('}');
 
-      document.getElementById('output').textContent = lines.join('\n');
+      output.value = lines.join('\n');
     }
 
     function diffToNumber(diff) {
