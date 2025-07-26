@@ -29,53 +29,59 @@
     outputBox.value = "Loading...";
 
     let page = 0;
-    let allSongs = [];
+    let allMaps = [];
 
     try {
+      // Fetch all paginated maps
       while (true) {
         const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}/${page}`;
         const response = await fetch(apiUrl);
         if (!response.ok) break;
 
         const data = await response.json();
-        const songs = data.songs || [];
+        const maps = data.maps || [];
 
-        if (songs.length === 0) break;
+        if (maps.length === 0) break;
 
-        allSongs.push(...songs);
+        allMaps.push(...maps);
         page++;
       }
 
-      if (allSongs.length === 0) {
+      if (allMaps.length === 0) {
         outputBox.value = "default_songs = {}";
         return;
       }
 
       const lines = ['default_songs = {'];
 
-      for (const song of allSongs) {
-        const title = song.name || "Unknown Title";
-        const key = song.key || "UNKNOWN";
-        const versions = song.versions || [];
+      for (const mapEntry of allMaps) {
+        const map = mapEntry.map;
+        const metadata = map.metadata || {};
+        const songTitle = `${metadata.songAuthorName} - ${metadata.songName}`;
+        const fullTitle = `[${data.playlist.name}] ${songTitle}`;
+        const versions = map.versions || [];
 
+        let levelid = "UNKNOWN";
         let diffNumeric = 0;
         let characteristic = "Standard";
 
-        if (versions.length > 0 && versions[0].diffs.length > 0) {
-          const diffObj = versions[0].diffs.find(d => d.characteristic === "Standard") || versions[0].diffs[0];
-          const difficulty = diffObj.difficulty || "Unknown";
-          characteristic = diffObj.characteristic || "Standard";
+        if (versions.length > 0) {
+          const version = versions[0];
+          levelid = version.key || "UNKNOWN";
 
-          const difficultyMap = {
-            Easy: 1, Normal: 2, Hard: 3, Expert: 4, ExpertPlus: 5
-          };
-
-          diffNumeric = difficultyMap[difficulty] || 0;
+          const diffObj = version.diffs?.find(d => d.characteristic === "Standard") || version.diffs?.[0];
+          if (diffObj) {
+            characteristic = diffObj.characteristic || "Standard";
+            const difficultyMap = {
+              Easy: 1, Normal: 2, Hard: 3, Expert: 4, ExpertPlus: 5
+            };
+            diffNumeric = difficultyMap[diffObj.difficulty] || 0;
+          }
         }
 
-        lines.push(`    "${name}": {`);
-        lines.push(`        "levelid": "${id}",`);
-        lines.push(`        "difficulty": ${sageScore},`);
+        lines.push(`    "${fullTitle}": {`);
+        lines.push(`        "levelid": "${levelid}",`);
+        lines.push(`        "difficulty": ${diffNumeric},`);
         lines.push(`        "characteristic": "${characteristic}"`);
         lines.push(`    },`);
       }
@@ -89,6 +95,6 @@
       outputBox.value = "default_songs = {}";
     }
   }
-</script>
+  </script>
 </body>
 </html>
