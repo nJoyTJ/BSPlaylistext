@@ -73,9 +73,9 @@
           diffNumeric = difficultyMap[difficulty] || 0;
         }
 
-        lines.push(`    "${title}": {`);
-        lines.push(`        "levelid": "${key}",`);
-        lines.push(`        "difficulty": ${diffNumeric},`);
+        lines.push(`    "${name}": {`);
+        lines.push(`        "levelid": "${id}",`);
+        lines.push(`        "difficulty": ${sageScore},`);
         lines.push(`        "characteristic": "${characteristic}"`);
         lines.push(`    },`);
       }
