@@ -1,122 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>BeatSaver Playlist Parser</title>
+  <meta charset="UTF-8" />
+  <title>BeatSaver Playlist Extractor</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 1rem; }
-    textarea { width: 100%; height: 400px; font-family: monospace; }
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    label {
+      margin-right: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      margin-top: 1rem;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
-  <h1>BeatSaver Playlist to Python Dictionary</h1>
-  <input id="playlistUrl" type="text" placeholder="Enter BeatSaver playlist URL" size="80" />
-  
-  <select id="difficultyFilter">
-  <option value="All">All Difficulties</option>
-  <option value="Easy">Easy</option>
-  <option value="Normal">Normal</option>
-  <option value="Hard">Hard</option>
-  <option value="Expert">Expert</option>
-  <option value="ExpertPlus">ExpertPlus</option>
-  </select>
-  
-  <button onclick="fetchPlaylist()">Convert</button>
-  <h2>Output:</h2>
-  <textarea id="output" readonly></textarea>
+  <h1>BeatSaver Playlist Extractor</h1>
+  <label for="playlistUrl">Enter BeatSaver Playlist URL:</label><br>
+  <input type="text" id="playlistUrl" placeholder="https://beatsaver.com/playlists/964069" size="60" />
+  <button onclick="fetchPlaylist()">Generate</button>
+
+  <h3>Select Difficulties:</h3>
+  <div id="difficultyFilter">
+    <label><input type="checkbox" value="Easy" checked> Easy</label>
+    <label><input type="checkbox" value="Normal" checked> Normal</label>
+    <label><input type="checkbox" value="Hard" checked> Hard</label>
+    <label><input type="checkbox" value="Expert" checked> Expert</label>
+    <label><input type="checkbox" value="ExpertPlus" checked> ExpertPlus</label>
+  </div>
+
+  <textarea id="output" readonly placeholder="Python dictionary will appear here..."></textarea>
 
   <script>
-  async function fetchPlaylist() {
-    const input = document.getElementById("playlistUrl").value.trim();
-    const match = input.match(/\/playlists\/([^/]+)/);
-    if (!match) {
-      alert("Invalid URL");
-      return;
-    }
+    async function fetchPlaylist() {
+      const urlInput = document.getElementById('playlistUrl').value.trim();
+      const output = document.getElementById('output');
+      output.value = 'Fetching...';
 
-    const playlistId = match[1];
-    const outputBox = document.getElementById("output");
-    outputBox.value = "Loading...";
-
-    let page = 0;
-    let allMaps = [];
-    let playlistName = "";
-
-    try {
-      while (true) {
-        const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}/${page}`;
-        const response = await fetch(apiUrl);
-        if (!response.ok) break;
-
-        const data = await response.json();
-        if (page === 0 && data.playlist?.name) {
-          playlistName = data.playlist.name;
-        }
-
-        const maps = data.maps || [];
-        if (maps.length === 0) break;
-
-        allMaps.push(...maps);
-        page++;
-      }
-
-      if (allMaps.length === 0) {
-        outputBox.value = "default_songs = {}";
+      const playlistIdMatch = urlInput.match(/playlists\/(\d+)/);
+      if (!playlistIdMatch) {
+        output.value = 'Invalid playlist URL.';
         return;
       }
 
-      const lines = ['default_songs = {'];
+      const playlistId = playlistIdMatch[1];
+      const selectedDifficulties = Array.from(document.querySelectorAll('#difficultyFilter input[type="checkbox"]'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
 
-      const selectedDifficulty = document.getElementById("difficultyFilter").value;
+      try {
+        const res = await fetch(`https://api.beatsaver.com/playlists/id/${playlistId}/0`);
+        const data = await res.json();
 
-      for (const mapEntry of allMaps) {
-        const map = mapEntry.map || {};
-        const metadata = map.metadata || {};
-        const songTitle = `${metadata.songAuthorName || "Unknown Artist"} - ${metadata.songName || "Unknown Title"}`;
-        const baseTitle = `[${playlistName || "Playlist"}] ${songTitle}`;
+        const songs = data.maps;
+        const songDict = {};
 
-        const versions = map.versions || [];
-        if (versions.length === 0) continue;
+        for (const song of songs) {
+          const map = song.map;
+          const version = map.versions[0];
+          const levelId = version.key;
+          const diffs = version.diffs;
 
-        const version = versions[0];
-        const levelid = version.key || map.id || "UNKNOWN";
-        const diffs = version.diffs || [];
+          for (const diff of diffs) {
+            if (!selectedDifficulties.includes(diff.difficulty)) continue;
 
-      for (const diffObj of diffs) {
-        const difficulty = diffObj.difficulty || "Unknown";
-        if (selectedDifficulty !== "All" && selectedDifficulty !== difficulty) continue;
+            const songName = `[${data.playlist.name}] ${map.metadata.songAuthorName} - ${map.metadata.songName}`;
+            songDict[songName] = {
+              levelid: levelId,
+              difficulty: difficultyToNumber(diff.difficulty),
+              characteristic: diff.characteristic
+            };
+          }
+        }
 
-        const difficultyMap = {
-          Easy: 1,
-          Normal: 2,
-          Hard: 3,
-          Expert: 4,
-          ExpertPlus: 5
-        };
-
-        const characteristic = diffObj.characteristic || "Standard";
-        const diffNumeric = difficultyMap[difficulty] || 0;
-
-        const fullTitle = `${baseTitle} [${difficulty}]`;
-
-        lines.push(`    "${fullTitle}": {`);
-        lines.push(`        "levelid": "${levelid}",`);
-        lines.push(`        "difficulty": ${diffNumeric},`);
-        lines.push(`        "characteristic": "${characteristic}"`);
-        lines.push(`    },`);
+        const formatted = formatPythonDict(songDict);
+        output.value = formatted;
+      } catch (err) {
+        output.value = 'Error fetching playlist data:\n' + err.message;
       }
     }
-}
 
-      lines.push("}");
-      outputBox.value = lines.join("\n");
-
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Error fetching playlist data");
-      outputBox.value = "default_songs = {}";
+    function difficultyToNumber(difficulty) {
+      switch (difficulty) {
+        case 'Easy': return 1;
+        case 'Normal': return 2;
+        case 'Hard': return 3;
+        case 'Expert': return 4;
+        case 'ExpertPlus': return 5;
+        default: return 0;
+      }
     }
-  }
+
+    function formatPythonDict(obj) {
+      const entries = Object.entries(obj).map(([k, v]) => {
+        return `    "${k}": {\n        "levelid": "${v.levelid}",\n        "difficulty": ${v.difficulty},\n        "characteristic": "${v.characteristic}"\n    }`;
+      });
+      return `default_songs = {\n${entries.join(',\n')}\n}`;
+    }
   </script>
 </body>
 </html>
