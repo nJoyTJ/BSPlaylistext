@@ -66,7 +66,7 @@
         const map = mapEntry.map || {};
         const metadata = map.metadata || {};
         const songTitle = `${metadata.songAuthorName || "Unknown Artist"} - ${metadata.songName || "Unknown Title"}`;
-        const fullTitle = `[${playlistName || "Playlist"}] ${songTitle}`;
+        const fullTitle = `${songTitle}`;
 
         const versions = map.versions || [];
         let levelid = "UNKNOWN";
