@@ -65,20 +65,20 @@
         for (const song of songs) {
           const map = song.map;
           const version = map.versions[0];
-          const levelId = version.key;
+          const levelId = version.key ?? map.id ?? "UNKNOWN";
           const diffs = version.diffs;
 
-          for (const diff of diffs) {
-            if (!selectedDifficulties.includes(diff.difficulty)) continue;
+        for (const diff of diffs) {
+          if (!selectedDifficulties.includes(diff.difficulty)) continue;
 
-            const songName = `[${data.playlist.name}] ${map.metadata.songAuthorName} - ${map.metadata.songName}`;
-            songDict[songName] = {
-              levelid: levelId,
-              difficulty: difficultyToNumber(diff.difficulty),
-              characteristic: diff.characteristic
-            };
-          }
+          const songName = `[${data.playlist.name}] ${map.metadata.songAuthorName} - ${map.metadata.songName}`;
+          songDict[songName] = {
+            levelid: levelId,
+            difficulty: difficultyToNumber(diff.difficulty),
+            characteristic: diff.characteristic
+          };
         }
+      }
 
         const formatted = formatPythonDict(songDict);
         output.value = formatted;
