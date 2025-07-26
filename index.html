@@ -30,17 +30,25 @@
 
     let page = 0;
     let allMaps = [];
+    let playlistName = "";
 
     try {
-      // Fetch all paginated maps
       while (true) {
         const apiUrl = `https://api.beatsaver.com/playlists/id/${playlistId}/${page}`;
         const response = await fetch(apiUrl);
-        if (!response.ok) break;
+        if (!response.ok) {
+          console.error("HTTP error", response.status);
+          break;
+        }
 
         const data = await response.json();
-        const maps = data.maps || [];
+        console.log("Fetched page", page, data); // 🧪 Log full response
 
+        if (page === 0 && data.playlist?.name) {
+          playlistName = data.playlist.name;
+        }
+
+        const maps = data.maps || [];
         if (maps.length === 0) break;
 
         allMaps.push(...maps);
@@ -55,12 +63,12 @@
       const lines = ['default_songs = {'];
 
       for (const mapEntry of allMaps) {
-        const map = mapEntry.map;
+        const map = mapEntry.map || {};
         const metadata = map.metadata || {};
-        const songTitle = `${metadata.songAuthorName} - ${metadata.songName}`;
-        const fullTitle = `[${data.playlist.name}] ${songTitle}`;
-        const versions = map.versions || [];
+        const songTitle = `${metadata.songAuthorName || "Unknown Artist"} - ${metadata.songName || "Unknown Title"}`;
+        const fullTitle = `[${playlistName || "Playlist"}] ${songTitle}`;
 
+        const versions = map.versions || [];
         let levelid = "UNKNOWN";
         let diffNumeric = 0;
         let characteristic = "Standard";
@@ -90,7 +98,7 @@
       outputBox.value = lines.join("\n");
 
     } catch (err) {
-      console.error(err);
+      console.error("Exception during fetch or processing:", err);
       alert("Error fetching playlist data");
       outputBox.value = "default_songs = {}";
     }
