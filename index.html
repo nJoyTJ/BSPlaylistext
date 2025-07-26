@@ -75,7 +75,7 @@
 
         if (versions.length > 0) {
           const version = versions[0];
-          levelid = version.key || "UNKNOWN";
+          levelid = version.key || map.id || "UNKNOWN";
 
           const diffObj = version.diffs?.find(d => d.characteristic === "Standard") || version.diffs?.[0];
           if (diffObj) {
