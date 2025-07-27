@@ -40,6 +40,17 @@
     <label><input type="checkbox" class="difficulty-filter" value="Expert" checked> Expert</label>
     <label><input type="checkbox" class="difficulty-filter" value="ExpertPlus" checked> ExpertPlus</label>
   </div>
+
+  <div class="section">
+    <strong>Select characteristics to include:</strong><br>
+    <label><input type="checkbox" class="characteristic-filter" value="Standard" checked> Standard</label>
+    <label><input type="checkbox" class="characteristic-filter" value="OneSaber" checked> OneSaber</label>
+    <label><input type="checkbox" class="characteristic-filter" value="NoArrows" checked> NoArrows</label>
+    <label><input type="checkbox" class="characteristic-filter" value="90Degree" checked> 90°</label>
+    <label><input type="checkbox" class="characteristic-filter" value="360Degree" checked> 360°</label>
+    <label><input type="checkbox" class="characteristic-filter" value="Lightshow" checked> Lightshow</label>
+    <label><input type="checkbox" class="characteristic-filter" value="Lawless" checked> Lawless</label>
+  </div>
   <br>
   <button onclick="fetchPlaylist()">Generate Python Dictionary</button>
 
@@ -57,6 +68,7 @@
       }
 
       const selectedDifficulties = Array.from(document.querySelectorAll('.difficulty-filter:checked')).map(cb => cb.value);
+      const selectedCharacteristics = Array.from(document.querySelectorAll('.characteristic-filter:checked')).map(cb => cb.value);
 
       let page = 0;
       let hasMore = true;
@@ -82,7 +94,10 @@
           const diffs = version.diffs;
 
           for (const diff of diffs) {
-            if (!selectedDifficulties.includes(diff.difficulty)) continue;
+            if (
+              !selectedDifficulties.includes(diff.difficulty) ||
+              !selectedCharacteristics.includes(diff.characteristic)
+            ) continue;
 
             const songName = `${map.metadata.songAuthorName} - ${map.metadata.songName} [${diff.difficulty}]`;
             songDict[songName] = {
@@ -107,11 +122,11 @@
 
     function diffToNumber(diff) {
       const mapping = {
-        Easy: 1,
-        Normal: 2,
-        Hard: 3,
-        Expert: 4,
-        ExpertPlus: 5
+        Easy: 0,
+        Normal: 1,
+        Hard: 2,
+        Expert: 3,
+        ExpertPlus: 4
       };
       return mapping[diff] ?? 0;
     }
