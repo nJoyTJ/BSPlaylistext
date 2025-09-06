@@ -24,6 +24,10 @@
     label {
       margin-right: 10px;
     }
+
+    .section {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
@@ -32,7 +36,7 @@
   <input type="text" id="playlistUrl" placeholder="https://beatsaver.com/playlists/123456">
   <br><br>
 
-  <div>
+  <div class="section">
     <strong>Select difficulties to include:</strong><br>
     <label><input type="checkbox" class="difficulty-filter" value="Easy" checked> Easy</label>
     <label><input type="checkbox" class="difficulty-filter" value="Normal" checked> Normal</label>
@@ -51,7 +55,7 @@
     <label><input type="checkbox" class="characteristic-filter" value="Lightshow" checked> Lightshow</label>
     <label><input type="checkbox" class="characteristic-filter" value="Lawless" checked> Lawless</label>
   </div>
-  <br>
+
   <button onclick="fetchPlaylist()">Generate Python Dictionary</button>
 
   <textarea id="output" placeholder="Your song dictionary will appear here..."></textarea>
@@ -99,8 +103,11 @@
               !selectedCharacteristics.includes(diff.characteristic)
             ) continue;
 
-            const songName = `${map.metadata.songAuthorName} - ${map.metadata.songName} [${diff.difficulty}]`;
-            songDict[songName] = {
+            const songKey = `${map.metadata.songAuthorName} - ${map.metadata.songName} [${diff.difficulty}]`;
+
+            songDict[songKey] = {
+              songName: map.metadata.songName,
+              levelAuthorName: map.metadata.levelAuthorName,
               levelid: levelId,
               difficulty: diffToNumber(diff.difficulty),
               characteristic: diff.characteristic
@@ -113,7 +120,14 @@
 
       const lines = ['default_songs = {'];
       for (const [k, v] of Object.entries(songDict)) {
-        lines.push(`    "${k}": {\n        "levelid": "${v.levelid}",\n        "difficulty": ${v.difficulty},\n        "characteristic": "${v.characteristic}"\n    },`);
+        lines.push(
+`    "${k}": {
+        songName: "${v.songName}",
+        levelAuthorName: "${v.levelAuthorName}",
+        levelid: "${v.levelid}",
+        difficulty: ${v.difficulty},
+        characteristic: "${v.characteristic}"
+    },`);
       }
       lines.push('}');
 
@@ -122,11 +136,11 @@
 
     function diffToNumber(diff) {
       const mapping = {
-        Easy: 0,
-        Normal: 1,
-        Hard: 2,
-        Expert: 3,
-        ExpertPlus: 4
+        Easy: 1,
+        Normal: 2,
+        Hard: 3,
+        Expert: 4,
+        ExpertPlus: 5
       };
       return mapping[diff] ?? 0;
     }
