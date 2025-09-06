@@ -122,11 +122,11 @@
       for (const [k, v] of Object.entries(songDict)) {
         lines.push(
 `    "${k}": {
-        songName: "${v.songName}",
-        levelAuthorName: "${v.levelAuthorName}",
-        levelid: "${v.levelid}",
-        difficulty: ${v.difficulty},
-        characteristic: "${v.characteristic}"
+        "songName": "${v.songName}",
+        "levelAuthorName": "${v.levelAuthorName}",
+        "levelid": "${v.levelid}",
+        "difficulty": ${v.difficulty},
+        "characteristic": "${v.characteristic}"
     },`);
       }
       lines.push('}');
